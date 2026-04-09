@@ -3,6 +3,7 @@ import matplotlib.animation as animation
 import random
 import copy
 
+
 class SortingVisualizer:
     def __init__(self, data):
         self.data = data
@@ -11,6 +12,7 @@ class SortingVisualizer:
         self.ax.set_title('Sorting Algorithm Visualization')
         self.ax.set_xlabel('Index')
         self.ax.set_ylabel('Value')
+        self.ax.set_ylim(0, max(data) * 1.1)
         
     def update_bars(self, colors=None):
         """更新柱状图颜色和高度"""
@@ -59,6 +61,8 @@ class SortingVisualizer:
     def bubble_sort_generator(self, arr):
         """冒泡排序生成器，用于动画"""
         n = len(arr)
+        sorted_indices = []  # 已排序的索引
+        
         for i in range(n):
             swapped = False
             for j in range(0, n - i - 1):
@@ -79,7 +83,13 @@ class SortingVisualizer:
                     colors[j + 1] = 'green'
                     yield colors.copy()
             
+            # 标记这一轮最后一位已排序
+            sorted_indices.append(n - i - 1)
             if not swapped:
+                # 剩余的都是已排序
+                for k in range(n - i - 1):
+                    if k not in sorted_indices:
+                        sorted_indices.append(k)
                 break
         
         # 全部排序完成
@@ -102,7 +112,7 @@ class SortingVisualizer:
             return self.bars
         
         anim = animation.FuncAnimation(
-            self.fig, update, frames=200, interval=100, blit=False, repeat=False
+            self.fig, update, frames=500, interval=50, blit=False, repeat=False
         )
         plt.show()
     
@@ -127,28 +137,78 @@ class SortingVisualizer:
             return self.bars
         
         anim = animation.FuncAnimation(
-            self.fig, update, frames=len(frames), interval=200, blit=False, repeat=False
+            self.fig, update, frames=len(frames), interval=100, blit=False, repeat=False
         )
         plt.show()
     
     def compare_algorithms(self):
-        """对比两种排序算法"""
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        
-        # 快速排序
+        """对比两种排序算法 - 同步动画"""
+        # 创建两个独立的数据副本
         data_quick = copy.deepcopy(self.data)
-        ax1 = axes[0]
-        ax1.set_title('Quick Sort')
-        bars1 = ax1.bar(range(len(data_quick)), data_quick, color='skyblue')
-        
-        # 冒泡排序
         data_bubble = copy.deepcopy(self.data)
-        ax2 = axes[1]
-        ax2.set_title('Bubble Sort')
+        
+        # 创建双子图
+        self.fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # 设置柱子
+        bars1 = ax1.bar(range(len(data_quick)), data_quick, color='skyblue')
         bars2 = ax2.bar(range(len(data_bubble)), data_bubble, color='skyblue')
         
-        # 这里简化处理，只显示初始状态
+        # 设置标题和标签
+        ax1.set_title('Quick Sort', fontsize=14, fontweight='bold')
+        ax1.set_xlabel('Index')
+        ax1.set_ylabel('Value')
+        ax1.set_ylim(0, max(self.data) * 1.1)
+        
+        ax2.set_title('Bubble Sort', fontsize=14, fontweight='bold')
+        ax2.set_xlabel('Index')
+        ax2.set_ylabel('Value')
+        ax2.set_ylim(0, max(self.data) * 1.1)
+        
         plt.tight_layout()
+        
+        # 获取两个排序算法的生成器
+        gen_quick = self.quick_sort_generator(data_quick, 0, len(data_quick) - 1)
+        gen_bubble = self.bubble_sort_generator(data_bubble)
+        
+        # 预计算所有帧
+        frames_quick = []
+        frames_bubble = []
+        
+        try:
+            while True:
+                frames_quick.append(next(gen_quick))
+        except StopIteration:
+            pass
+        
+        try:
+            while True:
+                frames_bubble.append(next(gen_bubble))
+        except StopIteration:
+            pass
+        
+        max_frames = max(len(frames_quick), len(frames_bubble))
+        
+        def update(frame_idx):
+            # 更新快速排序
+            if frame_idx < len(frames_quick):
+                colors = frames_quick[frame_idx]
+                for i, bar in enumerate(bars1):
+                    bar.set_height(data_quick[i])
+                    bar.set_color(colors[i])
+            
+            # 更新冒泡排序
+            if frame_idx < len(frames_bubble):
+                colors = frames_bubble[frame_idx]
+                for i, bar in enumerate(bars2):
+                    bar.set_height(data_bubble[i])
+                    bar.set_color(colors[i])
+            
+            return list(bars1) + list(bars2)
+        
+        anim = animation.FuncAnimation(
+            self.fig, update, frames=max_frames, interval=50, blit=False, repeat=False
+        )
         plt.show()
 
 
@@ -162,7 +222,7 @@ def main():
     print("=" * 40)
     print("1. 快速排序可视化")
     print("2. 冒泡排序可视化")
-    print("3. 算法对比")
+    print("3. 算法对比（同步动画）")
     print("=" * 40)
     
     choice = input("请选择 (1/2/3): ").strip()
@@ -176,7 +236,7 @@ def main():
         print("正在展示冒泡排序...")
         visualizer.animate_bubble_sort()
     elif choice == '3':
-        print("展示算法对比...")
+        print("正在展示算法对比...")
         visualizer.compare_algorithms()
     else:
         print("无效选择，默认展示快速排序")
